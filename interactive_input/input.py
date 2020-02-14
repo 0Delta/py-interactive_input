@@ -9,36 +9,7 @@ locale.setlocale(locale.LC_ALL, '')
 code = locale.getpreferredencoding()
 
 
-def loadStr(message: str):
-    """ Get user input and check
-
-    Get string param from stdin.
-
-    Args:
-        message (str): Print message before input.
-
-    Returns:
-        str: inputed message.
-
-    """
-    ok = ""
-    while not ok == "o":
-        ok = ""
-        print(message + " ? : ", end="")
-        instr = input().strip()
-        while ok == "":
-            print("OK? [y/N] :", end="")
-            chstr = input().strip()
-            if chstr == "Y" or chstr == "y":
-                ok = "o"
-            elif chstr != "":
-                ok = "x"
-            else:
-                ok = ""
-    return instr
-
-
-def base64enc(e: str) -> str:
+def testenc(e: str) -> str:
     return "base64ed: " + e
 
 
@@ -214,17 +185,16 @@ class Object():
             ret[key] = self.dictonary[key].GetVal()
         return ret
 
-    def toString(self):
+    def __str__(self):
         return self.dictonary
 
 
 if __name__ == '__main__':
-
     test = Object()
     test.AddQ("key")
     test.AddQ("key2", message="hoge-fuge")
-    test.AddQ("key3", hook=base64enc)
+    test.AddQ("key3", hook=testenc)
     ret = test.Ask()
-    test.AddQ("key4", hook=base64enc, default="aaa")
+    test.AddQ("key4", hook=testenc, default="aaa")
     ret = test.Ask()
     print(ret)
