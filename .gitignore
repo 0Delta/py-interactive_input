@@ -1,0 +1,8 @@
+*.swp
+
+.venv/
+Pipfile.lock
+
+build/
+dist/
+interactive_input.egg-info/
