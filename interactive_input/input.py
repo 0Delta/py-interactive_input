@@ -63,6 +63,7 @@ class Object():
 
     def AddQ(self, key: str, *,
              message: str = "",
+             default: str = None,
              hook: Callable[[str], str] = noAction,
              overwrite: bool = False) -> None:
 
@@ -70,7 +71,7 @@ class Object():
             message = key
 
         if overwrite or not (key in self.dictonary):
-            self.dictonary[key] = self.__needAsk(message, hook)
+            self.dictonary[key] = self.__needAsk(message, hook, default)
 
         return None
 
@@ -107,6 +108,8 @@ class Object():
                 subwins[actidx].addstr(0, 0, self.dictonary[key].value)
                 actidx += 1
             y += 1
+        if actidx >= len(subwins):
+            actidx = len(subwins)-1
         max_y = y - 1   # calc printable size
 
         stdscr.refresh()
@@ -222,6 +225,6 @@ if __name__ == '__main__':
     test.AddQ("key2", message="hoge-fuge")
     test.AddQ("key3", hook=base64enc)
     ret = test.Ask()
-    test.AddQ("key4", hook=base64enc)
+    test.AddQ("key4", hook=base64enc, default="aaa")
     ret = test.Ask()
     print(ret)
