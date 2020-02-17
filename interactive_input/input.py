@@ -13,24 +13,64 @@ def testenc(e: str) -> str:
     return "base64ed: " + e
 
 
+class needAsk():
+    def __init__(self, message: str, hook: Callable[[str], str], value: str = None):
+        self.message = message
+        self.hook = hook
+        self.value = value
+
+    def SetVal(self, val: str) -> None:
+        self.value = val
+
+    def GetVal(self) -> str:
+        return self.hook(self.value)
+
+
+class subwin():
+
+    def __init__(self, parent, x: int, y: int):
+        _, win_x = parent.getmaxyx()
+        self.px = x
+        self.py = y
+        self.mx = win_x - self.px - 1
+        self.window = parent.derwin(1, self.mx, self.py, self.px)
+        self.x = 0
+        self.val = ""
+
+    def ins_str(self, insert_string):
+        insert_string = str(insert_string)
+        dist = len(self.val) - self.x
+        if dist <= 0:
+            self.val += (" " * (dist * -1))
+        self.x += len(insert_string)
+        self.val = self.val[:self.x] + insert_string + self.val[self.x:]
+        return self.val
+
+    def del_str(self, del_point):
+        if len(self.val) >= del_point:
+            self.val = self.val[:del_point-1] + self.val[del_point:]
+        self.x -= 1
+        return self.val
+
+    def move_x(self, n: int) -> None:
+        self.x += n
+
+    def render(self):
+        mes = self.val + " " * (self.mx - len(self.val) - 1)
+        self.window.addstr(0, 0, mes)
+        self.window.move(0, self.x)
+        self.window.refresh()
+
+    def __str__(self):
+        return self.val
+
+
 class Object():
     def __init__(self):
         self.dictonary = {}
 
     def noAction(e: str) -> str:
         return e
-
-    class __needAsk():
-        def __init__(self, message: str, hook: Callable[[str], str], value: str = None):
-            self.message = message
-            self.hook = hook
-            self.value = value
-
-        def SetVal(self, val: str) -> None:
-            self.value = val
-
-        def GetVal(self) -> str:
-            return self.hook(self.value)
 
     def AddQ(self, key: str, *,
              message: str = "",
@@ -42,7 +82,7 @@ class Object():
             message = key
 
         if overwrite or not (key in self.dictonary):
-            self.dictonary[key] = self.__needAsk(message, hook, default)
+            self.dictonary[key] = needAsk(message, hook, default)
 
         return None
 
@@ -63,21 +103,27 @@ class Object():
         y = 0
 
         # get window size max
-        _, max_x = stdscr.getmaxyx()
-        max_x -= 1 + keylen
+        win_y, win_x = stdscr.getmaxyx()
+        max_x = win_x - 1 - keylen
 
         # init subwindows and print messages
+        idx = 0
         actidx = 0
-        subwins = []
+        subwins = {}
         for key in self.dictonary:
-            stdscr.addstr(y, x, self.dictonary[key].message, curses.A_REVERSE)
+            message = self.dictonary[key].message
+            if len(message) > max_x:
+                message = message[:max_x-3] + "..."
+            stdscr.addstr(y, x, message, curses.A_REVERSE)
             y += 1
             stdscr.addstr(y, x, key)
             stdscr.addstr(y, keylen - 2, ':')
-            subwins.append(stdscr.derwin(1, max_x - keylen, y, keylen))
+            subwins[idx] = subwin(stdscr, keylen, y)
             if not self.dictonary[key].value is None:
-                subwins[actidx].addstr(0, 0, self.dictonary[key].value)
+                subwins[idx].ins_str(self.dictonary[key].value)
+                subwins[idx].render()
                 actidx += 1
+            idx += 1
             y += 1
         if actidx >= len(subwins):
             actidx = len(subwins)-1
@@ -87,8 +133,6 @@ class Object():
 
         clog = []
         while True:
-            actwin = subwins[actidx]
-
             act = ""    # for debug
 
             # get key and log
@@ -97,7 +141,8 @@ class Object():
                 clog.pop(0)
             clog.append(str(key))
 
-            now_y, now_x = actwin.getyx()
+            # now_y, now_x = actwin.getyx()
+            now_x = subwins[actidx].x
 
             # end with Ctrl+X
             if key == curses.ascii.CAN:
@@ -107,25 +152,23 @@ class Object():
             elif key in (curses.ascii.BS, curses.ascii.DEL, curses.KEY_BACKSPACE):
                 act = "D"
                 if now_x > 0:
-                    actwin.delch(now_y, now_x-1)
-                    actwin.move(now_y, now_x-1)
+                    subwins[actidx].del_str(now_x)
 
             # →
             elif key == curses.KEY_RIGHT:
                 act = "→"
                 if now_x < max_x:
-                    actwin.move(now_y, now_x+1)
+                    subwins[actidx].move_x(1)
             # ←
             elif key == curses.KEY_LEFT:
                 act = "←"
-                if now_x > keylen:
-                    actwin.move(now_y, now_x-1)
+                if now_x > 0:
+                    subwins[actidx].move_x(-1)
             # ↓
             elif key in (curses.KEY_DOWN, curses.ascii.NL):
                 act = "↓"
                 if len(subwins) > actidx+1:
                     actidx += 1
-                    actwin = subwins[actidx]
                 else:
                     break
             # ↑
@@ -133,54 +176,36 @@ class Object():
                 act = "↑"
                 if actidx > 0:
                     actidx -= 1
-                    actwin = subwins[actidx]
 
             # Other
             else:
                 # ignore overrange input
                 # TODO: Scroll or expand rect
-                if now_x == max_x and now_y == max_y:
-                    pass
+                # if now_x == max_x and now_y == max_y:
+                #     pass
                 # End with last line enter
-                elif now_y == max_y and key in (curses.KEY_ENTER, 10):
+                if actidx >= len(subwins) and key in (curses.KEY_ENTER, 10):
                     break
                 # overwise add char
                 else:
                     act = "P"
-                    actwin.addch(now_y, now_x, key)
+                    subwins[actidx].ins_str(chr(key))
 
-            # get cursole position
-            now_y, now_x = actwin.getyx()
             # debug
-            if False:
+            if True:
                 stdscr.addstr(19, 20, 'idx' + str(actidx) + "/" + str(len(subwins)) + " - " + act)
                 stdscr.addstr(20, 20, 'max/min ' + str(max_y) + ':' + str(keylen))
-                stdscr.addstr(21, 20, 'now ' + str(now_y) + ':' + str(now_x))
-                stdscr.addstr(22, 0, ",".join(clog))
+                stdscr.addstr(21, 0, ",".join(clog))
+                for subw in subwins:
+                    stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : " + str(subwins[subw]) + " "*3)
                 stdscr.refresh()
 
-            actwin.move(now_y, now_x)
-            actwin.refresh()
-
-        rets = []
-        for actwin in subwins:
-            ret = b''
-            i = 0
-            while i < max_x:
-                # INFO: in_wch is not exist in python3.8
-                #       Need wait merge issue for non-ascii support
-                #       https://bugs.python.org/issue39214
-                c = (actwin.inch(0, i) & 0xFF)
-                if c in (0, 32):
-                    break
-                ret += c.to_bytes(1, "big")
-                i += 1
-            rets.append(ret.decode(code, errors="replace"))
+            subwins[actidx].render()
 
         ret = {}
         idx = 0
         for key in self.dictonary:
-            self.dictonary[key].SetVal(rets[idx])
+            self.dictonary[key].SetVal(subwins[idx].val)
             idx += 1
             ret[key] = self.dictonary[key].GetVal()
         return ret
@@ -191,8 +216,8 @@ class Object():
 
 if __name__ == '__main__':
     test = Object()
-    test.AddQ("key")
-    test.AddQ("key2", message="hoge-fuge")
+    test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
+    test.AddQ("key2", message="hoge-fuge", default="test")
     test.AddQ("key3", hook=testenc)
     ret = test.Ask()
     test.AddQ("key4", hook=testenc, default="aaa")
