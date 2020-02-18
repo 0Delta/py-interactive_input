@@ -54,8 +54,7 @@ Can move allow-key or `jkl`.
 ### Bug
 
 * Can't use non ascii character. it will broken data.
-* Long input is not considered. When the sum of key and value lengths exceeds the console length, this program will clash.
-
+* Not support very narrow console.
 
 ## LICENCE
 

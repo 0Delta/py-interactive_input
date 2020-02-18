@@ -27,14 +27,41 @@ class needAsk():
 
 
 class subwin():
+    """
+
+    px int:
+        subwindow X position.
+
+    py int:
+        subwindow Y position.
+
+    mx int:
+        max length of printable value.
+
+    window window:
+        window object.
+
+    x int:
+        real cursole position.
+
+    ox int:
+        count of hidden value at left side.
+
+    val str:
+        value data
+    """
+
+    L_OVER_CHAR = "<"
+    R_OVER_CHAR = ">"
 
     def __init__(self, parent, x: int, y: int):
         _, win_x = parent.getmaxyx()
         self.px = x
         self.py = y
-        self.mx = win_x - self.px - 1
-        self.window = parent.derwin(1, self.mx, self.py, self.px)
+        self.mx = win_x - self.px - 1 - len(self.R_OVER_CHAR) - len(self.L_OVER_CHAR)
+        self.window = parent.derwin(1, self.mx + len(self.R_OVER_CHAR) + len(self.L_OVER_CHAR), self.py, self.px)
         self.x = 0
+        self.ox = 0
         self.val = ""
 
     def ins_str(self, insert_string):
@@ -42,24 +69,62 @@ class subwin():
         dist = len(self.val) - self.x
         if dist <= 0:
             self.val += (" " * (dist * -1))
-        self.x += len(insert_string)
         self.val = self.val[:self.x] + insert_string + self.val[self.x:]
+        self.move_x(len(insert_string))
         return self.val
 
     def del_str(self, del_point):
         if len(self.val) >= del_point:
             self.val = self.val[:del_point-1] + self.val[del_point:]
-        self.x -= 1
+        self.move_x(-1)
+        if self.ox > 0:
+            self.ox -= 1
         return self.val
+
+    def l_over(self) -> bool:
+        return self.ox > 0
+
+    def r_over(self) -> bool:
+        return len(self.val) >= self.ox + self.mx
+
+    def cur(self) -> int:
+        return self.x - self.ox
 
     def move_x(self, n: int) -> None:
         self.x += n
+        if self.x <= 0:
+            self.x = 0
+        if self.cur() >= self.mx:
+            self.ox += self.cur() - self.mx + 1
+        if self.cur() <= 0:
+            self.ox += self.cur()
 
     def render(self):
-        mes = self.val + " " * (self.mx - len(self.val) - 1)
-        self.window.addstr(0, 0, mes)
-        self.window.move(0, self.x)
-        self.window.refresh()
+        try:
+            mes = self.val[self.ox:self.ox + self.mx]
+            if self.ox > 0:
+                x = self.x - self.ox
+            else:
+                x = self.x
+
+            if len(mes) < self.mx:
+                mes = mes + " " * (self.mx - len(mes))
+
+            self.window.addstr(0, len(self.R_OVER_CHAR), mes)
+
+            if self.l_over():
+                self.window.addstr(0, 0, self.L_OVER_CHAR, curses.A_REVERSE)
+            else:
+                self.window.addstr(0, 0, " " * len(self.L_OVER_CHAR))
+            if self.r_over():
+                self.window.addstr(0, self.mx, self.R_OVER_CHAR, curses.A_REVERSE)
+            else:
+                self.window.addstr(0, self.mx, " " * len(self.R_OVER_CHAR))
+
+            self.window.move(0, x + 1)
+            self.window.refresh()
+        except BaseException as e:
+            print(e)
 
     def __str__(self):
         return self.val
@@ -157,13 +222,12 @@ class Object():
             # →
             elif key == curses.KEY_RIGHT:
                 act = "→"
-                if now_x < max_x:
-                    subwins[actidx].move_x(1)
+                subwins[actidx].move_x(1)
             # ←
             elif key == curses.KEY_LEFT:
                 act = "←"
-                if now_x > 0:
-                    subwins[actidx].move_x(-1)
+                # if now_x > 0:
+                subwins[actidx].move_x(-1)
             # ↓
             elif key in (curses.KEY_DOWN, curses.ascii.NL):
                 act = "↓"
@@ -176,6 +240,10 @@ class Object():
                 act = "↑"
                 if actidx > 0:
                     actidx -= 1
+
+            # alt
+            elif key == 27:
+                pass
 
             # Other
             else:
@@ -197,7 +265,7 @@ class Object():
                 stdscr.addstr(20, 20, 'max/min ' + str(max_y) + ':' + str(keylen))
                 stdscr.addstr(21, 0, ",".join(clog))
                 for subw in subwins:
-                    stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : " + str(subwins[subw]) + " "*3)
+                    stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : ox" + str(subwins[subw].ox) + " : mx" + str(subwins[subw].mx) + " : len" + str(len(subwins[subw].val)))
                 stdscr.refresh()
 
             subwins[actidx].render()
@@ -217,7 +285,7 @@ class Object():
 if __name__ == '__main__':
     test = Object()
     test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
-    test.AddQ("key2", message="hoge-fuge", default="test")
+    test.AddQ("key2", message="hoge-fuge", default="testttttttttttttttttttttttttttttttttttttttttttttttttttttttttt")
     test.AddQ("key3", hook=testenc)
     ret = test.Ask()
     test.AddQ("key4", hook=testenc, default="aaa")
