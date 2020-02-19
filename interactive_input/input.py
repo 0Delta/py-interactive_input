@@ -55,12 +55,13 @@ class subwin():
     R_OVER_CHAR = ">"
 
     def __init__(self, parent, x: int, y: int):
-        _, win_x = parent.getmaxyx()
+        self.win_y, win_x = parent.getmaxyx()
         self.px = x
         self.py = y
         self.mx = win_x - self.px - 1 - len(self.R_OVER_CHAR) - len(self.L_OVER_CHAR)
         self.window = parent.derwin(1, self.mx + len(self.R_OVER_CHAR) + len(self.L_OVER_CHAR), self.py, self.px)
         self.x = 0
+        self.y = 0
         self.ox = 0
         self.val = ""
 
@@ -99,7 +100,11 @@ class subwin():
         if self.cur() <= 0:
             self.ox += self.cur()
 
-    def render(self):
+    def getpos(self) -> (int, int):
+        y, x = self.window.getyx()
+        return y + self.py, x + self.px
+
+    def render(self, active: bool = False):
         try:
             mes = self.val[self.ox:self.ox + self.mx]
             if self.ox > 0:
@@ -110,7 +115,10 @@ class subwin():
             if len(mes) < self.mx:
                 mes = mes + " " * (self.mx - len(mes))
 
-            self.window.addstr(0, len(self.R_OVER_CHAR), mes)
+            if active:
+                self.window.addstr(0, len(self.R_OVER_CHAR), mes, curses.A_BOLD | curses.A_UNDERLINE)
+            else:
+                self.window.addstr(0, len(self.R_OVER_CHAR), mes)
 
             if self.l_over():
                 self.window.addstr(0, 0, self.L_OVER_CHAR, curses.A_REVERSE)
@@ -121,9 +129,11 @@ class subwin():
             else:
                 self.window.addstr(0, self.mx, " " * len(self.R_OVER_CHAR))
 
-            self.window.move(0, x + 1)
-            self.window.syncup()
-            self.window.refresh()
+            if self.win_y > self.py + self.y and self.py + self.y > 0:
+                # self.window.mvderwin(self.py + self.y, self.px)
+                self.window.move(0, x + 1)
+                self.window.syncup()
+                # self.window.refresh()
         except BaseException as e:
             print(e)
 
@@ -160,6 +170,8 @@ class Object():
         return curses.wrapper(self.__ask)
 
     def __ask(self, stdscr) -> dict:
+        win_y, win_x = stdscr.getmaxyx()
+        stdscr = curses.newpad(win_y, win_x)
         # calc key max length
         keylen = 0
         for key in self.dictonary:
@@ -173,7 +185,6 @@ class Object():
         y = 0
 
         # get window size max
-        win_y, win_x = stdscr.getmaxyx()
         max_x = win_x - 1 - keylen
 
         # init subwindows and print messages
@@ -181,13 +192,14 @@ class Object():
         actidx = 0
         subwins = {}
         meswins = {}
+        pos_y = 0
         for key in self.dictonary:
             message = self.dictonary[key].message
             if len(message) > max_x:
                 message = message[:max_x-3] + "..."
             meswins[idx] = stdscr.derwin(1, win_x - 1, y, 0)
-            meswins[idx].addstr(0, 0, message, curses.A_UNDERLINE)
-            meswins[idx].refresh()
+            meswins[idx].addstr(0, 0, message, curses.A_DIM | curses.A_LOW)
+            meswins[idx].refresh(0, 0, 0, 0, 0, 0)
             # stdscr.addstr(y, x, message, curses.A_REVERSE)
             y += 1
             if win_y <= y:
@@ -198,7 +210,8 @@ class Object():
             if not self.dictonary[key].value is None:
                 subwins[idx].ins_str(self.dictonary[key].value)
                 subwins[idx].render()
-                actidx += 1
+                if actidx == idx and len(self.dictonary) >= actidx + 1:
+                    actidx += 1
             idx += 1
             y += 1
             if win_y <= y:
@@ -207,8 +220,20 @@ class Object():
             actidx = len(subwins)-1
         max_y = y - 1   # calc printable size
 
+        # enable scroll
         stdscr.scrollok(True)
-        stdscr.refresh()
+        stdscr.idlok(True)
+        stdscr.keypad(True)
+
+        # first render
+        now_y, now_x = subwins[actidx].getpos()
+        if pos_y > now_y:
+            pos_y = now_y - 1
+        if now_y - pos_y > win_y - 1:
+            pos_y = now_y - win_y + 1
+        subwins[actidx].render(active=True)
+        stdscr.move(now_y, now_x)
+        stdscr.refresh(pos_y, 0, 0, 0, win_y - 1, win_x - 1)
 
         clog = []
         while True:
@@ -247,7 +272,6 @@ class Object():
                 act = "↓"
                 if len(subwins) > actidx+1:
                     actidx += 1
-                    # stdscr.scroll(2)
                 else:
                     break
             # ↑
@@ -255,7 +279,6 @@ class Object():
                 act = "↑"
                 if actidx > 0:
                     actidx -= 1
-                    # stdscr.scroll(-2)
 
             # alt
             elif key == 27:
@@ -282,13 +305,20 @@ class Object():
                 stdscr.addstr(21, 0, ",".join(clog))
                 for subw in subwins:
                     stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : ox" + str(subwins[subw].ox) + " : mx" + str(subwins[subw].mx) + " : len" + str(len(subwins[subw].val)))
-                stdscr.refresh()
 
-            for idx in meswins:
-                meswins[idx].refresh()
+            # for idx in meswins:
+            #   meswins[idx].refresh()
             for idx in subwins:
                 subwins[idx].render()
-            stdscr.refresh()
+            subwins[actidx].render(active=True)
+
+            now_y, now_x = subwins[actidx].getpos()
+            if pos_y > now_y:
+                pos_y = now_y - 1
+            if now_y - pos_y > win_y - 1:
+                pos_y = now_y - win_y + 1
+            stdscr.move(now_y, now_x)
+            stdscr.refresh(pos_y, 0, 0, 0, win_y - 1, win_x - 1)
 
         ret = {}
         idx = 0
