@@ -122,6 +122,7 @@ class subwin():
                 self.window.addstr(0, self.mx, " " * len(self.R_OVER_CHAR))
 
             self.window.move(0, x + 1)
+            self.window.syncup()
             self.window.refresh()
         except BaseException as e:
             print(e)
@@ -130,21 +131,25 @@ class subwin():
         return self.val
 
 
+def noAction(e: str) -> str:
+    return e
+
+
 class Object():
     def __init__(self):
         self.dictonary = {}
 
-    def noAction(e: str) -> str:
-        return e
-
     def AddQ(self, key: str, *,
              message: str = "",
              default: str = None,
-             hook: Callable[[str], str] = noAction,
+             hook: Callable[[str], str] = None,
              overwrite: bool = False) -> None:
 
         if message is None or message == "":
             message = key
+
+        if hook is None:
+            hook = noAction
 
         if overwrite or not (key in self.dictonary):
             self.dictonary[key] = needAsk(message, hook, default)
@@ -175,12 +180,18 @@ class Object():
         idx = 0
         actidx = 0
         subwins = {}
+        meswins = {}
         for key in self.dictonary:
             message = self.dictonary[key].message
             if len(message) > max_x:
                 message = message[:max_x-3] + "..."
-            stdscr.addstr(y, x, message, curses.A_REVERSE)
+            meswins[idx] = stdscr.derwin(1, win_x - 1, y, 0)
+            meswins[idx].addstr(0, 0, message, curses.A_UNDERLINE)
+            meswins[idx].refresh()
+            # stdscr.addstr(y, x, message, curses.A_REVERSE)
             y += 1
+            if win_y <= y:
+                stdscr.resize(y + 1, win_x)
             stdscr.addstr(y, x, key)
             stdscr.addstr(y, keylen - 2, ':')
             subwins[idx] = subwin(stdscr, keylen, y)
@@ -190,10 +201,13 @@ class Object():
                 actidx += 1
             idx += 1
             y += 1
+            if win_y <= y:
+                stdscr.resize(y + 1, win_x)
         if actidx >= len(subwins):
             actidx = len(subwins)-1
         max_y = y - 1   # calc printable size
 
+        stdscr.scrollok(True)
         stdscr.refresh()
 
         clog = []
@@ -233,6 +247,7 @@ class Object():
                 act = "↓"
                 if len(subwins) > actidx+1:
                     actidx += 1
+                    # stdscr.scroll(2)
                 else:
                     break
             # ↑
@@ -240,6 +255,7 @@ class Object():
                 act = "↑"
                 if actidx > 0:
                     actidx -= 1
+                    # stdscr.scroll(-2)
 
             # alt
             elif key == 27:
@@ -260,7 +276,7 @@ class Object():
                     subwins[actidx].ins_str(chr(key))
 
             # debug
-            if True:
+            if False:
                 stdscr.addstr(19, 20, 'idx' + str(actidx) + "/" + str(len(subwins)) + " - " + act)
                 stdscr.addstr(20, 20, 'max/min ' + str(max_y) + ':' + str(keylen))
                 stdscr.addstr(21, 0, ",".join(clog))
@@ -268,7 +284,11 @@ class Object():
                     stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : ox" + str(subwins[subw].ox) + " : mx" + str(subwins[subw].mx) + " : len" + str(len(subwins[subw].val)))
                 stdscr.refresh()
 
-            subwins[actidx].render()
+            for idx in meswins:
+                meswins[idx].refresh()
+            for idx in subwins:
+                subwins[idx].render()
+            stdscr.refresh()
 
         ret = {}
         idx = 0
@@ -279,13 +299,13 @@ class Object():
         return ret
 
     def __str__(self):
-        return self.dictonary
+        return str(self.dictonary)
 
 
 if __name__ == '__main__':
     test = Object()
     test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
-    test.AddQ("key2", message="hoge-fuge", default="testttttttttttttttttttttttttttttttttttttttttttttttttttttttttt")
+    test.AddQ("key2", message="hoge-fuge", default=None)
     test.AddQ("key3", hook=testenc)
     ret = test.Ask()
     test.AddQ("key4", hook=testenc, default="aaa")
