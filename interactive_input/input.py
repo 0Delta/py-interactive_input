@@ -109,6 +109,9 @@ class subwin():
         y, x = self.window.getyx()
         return y + self.py, x + self.px
 
+    def validate(self) -> bool:
+        return self.validator is None or self.validator(self.val)
+
     def render(self, active: bool = False):
         try:
             mes = self.val[self.ox:self.ox + self.mx]
@@ -120,13 +123,13 @@ class subwin():
             if len(mes) < self.mx:
                 mes = mes + " " * (self.mx - len(mes))
 
-            if active:
-                if self.validator is not None and self.validator(self.val):
+            if not self.validate():
+                self.window.addstr(0, len(self.R_OVER_CHAR), mes, curses.A_BOLD | curses.A_REVERSE)
+            else:
+                if active:
                     self.window.addstr(0, len(self.R_OVER_CHAR), mes, curses.A_BOLD | curses.A_UNDERLINE)
                 else:
-                    self.window.addstr(0, len(self.R_OVER_CHAR), mes, curses.A_BOLD | curses.A_REVERSE)
-            else:
-                self.window.addstr(0, len(self.R_OVER_CHAR), mes)
+                    self.window.addstr(0, len(self.R_OVER_CHAR), mes)
 
             if self.l_over():
                 self.window.addstr(0, 0, self.L_OVER_CHAR, curses.A_REVERSE)
@@ -208,7 +211,6 @@ class Object():
         actidx = 0
         subwins = {}
         meswins = {}
-        pos_y = 0
         for key in self.dictonary:
             message = self.dictonary[key].message
             if len(message) > max_x:
@@ -241,15 +243,24 @@ class Object():
         stdscr.idlok(True)
         stdscr.keypad(True)
 
+        def checkValid():
+            for idx in subwins:
+                if not subwins[idx].validate():
+                    return False
+            return True
+
+        def render():
+            pos_y = 0
+            now_y, now_x = subwins[actidx].getpos()
+            if pos_y > now_y:
+                pos_y = now_y - 1
+            if now_y - pos_y > win_y - 1:
+                pos_y = now_y - win_y + 1
+            subwins[actidx].render(active=True)
+            stdscr.move(now_y, now_x)
+            stdscr.refresh(pos_y, 0, 0, 0, win_y - 1, win_x - 1)
         # first render
-        now_y, now_x = subwins[actidx].getpos()
-        if pos_y > now_y:
-            pos_y = now_y - 1
-        if now_y - pos_y > win_y - 1:
-            pos_y = now_y - win_y + 1
-        subwins[actidx].render(active=True)
-        stdscr.move(now_y, now_x)
-        stdscr.refresh(pos_y, 0, 0, 0, win_y - 1, win_x - 1)
+        render()
 
         clog = []
         while True:
@@ -266,6 +277,10 @@ class Object():
 
             # end with Ctrl+X
             if key == curses.ascii.CAN:
+                if not checkValid():
+                    curses.beep()
+                    curses.flash()
+                    continue
                 break
 
             # delete
@@ -289,6 +304,10 @@ class Object():
                 if len(subwins) > actidx+1:
                     actidx += 1
                 else:
+                    if not checkValid():
+                        curses.beep()
+                        curses.flash()
+                        continue
                     break
             # ↑
             elif key in (curses.KEY_UP, curses.ascii.VT):
@@ -308,6 +327,10 @@ class Object():
                 #     pass
                 # End with last line enter
                 if actidx >= len(subwins) and key in (curses.KEY_ENTER, 10):
+                    if not checkValid():
+                        curses.beep()
+                        curses.flash()
+                        continue
                     break
                 # overwise add char
                 else:
@@ -328,13 +351,7 @@ class Object():
                 subwins[idx].render()
             subwins[actidx].render(active=True)
 
-            now_y, now_x = subwins[actidx].getpos()
-            if pos_y > now_y:
-                pos_y = now_y - 1
-            if now_y - pos_y > win_y - 1:
-                pos_y = now_y - win_y + 1
-            stdscr.move(now_y, now_x)
-            stdscr.refresh(pos_y, 0, 0, 0, win_y - 1, win_x - 1)
+            render()
 
         ret = {}
         idx = 0
