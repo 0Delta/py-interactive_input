@@ -10,7 +10,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setup(
     name='interactive_input',
     packages=['interactive_input'],
-    version='0.1.0',
+    version='0.2.0',
     license='MIT',
     python_requires='>=3.6',
     install_requires=[],

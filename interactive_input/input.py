@@ -14,16 +14,20 @@ def testenc(e: str) -> str:
 
 
 class needAsk():
-    def __init__(self, message: str, hook: Callable[[str], str], value: str = None):
+    def __init__(self, message: str, hook: Callable[[str], str], validator: Callable[[str], bool], value: str = None):
         self.message = message
         self.hook = hook
         self.value = value
+        self.validator = validator
 
     def SetVal(self, val: str) -> None:
         self.value = val
 
     def GetVal(self) -> str:
         return self.hook(self.value)
+
+    def Validate(self) -> bool:
+        return self.validator(self.value)
 
 
 class subwin():
@@ -54,7 +58,7 @@ class subwin():
     L_OVER_CHAR = "<"
     R_OVER_CHAR = ">"
 
-    def __init__(self, parent, x: int, y: int):
+    def __init__(self, parent, x: int, y: int, validator: Callable[[str], bool] = None):
         self.win_y, win_x = parent.getmaxyx()
         self.px = x
         self.py = y
@@ -64,6 +68,7 @@ class subwin():
         self.y = 0
         self.ox = 0
         self.val = ""
+        self.validator = validator
 
     def ins_str(self, insert_string):
         insert_string = str(insert_string)
@@ -116,7 +121,10 @@ class subwin():
                 mes = mes + " " * (self.mx - len(mes))
 
             if active:
-                self.window.addstr(0, len(self.R_OVER_CHAR), mes, curses.A_BOLD | curses.A_UNDERLINE)
+                if self.validator is not None and self.validator(self.val):
+                    self.window.addstr(0, len(self.R_OVER_CHAR), mes, curses.A_BOLD | curses.A_UNDERLINE)
+                else:
+                    self.window.addstr(0, len(self.R_OVER_CHAR), mes, curses.A_BOLD | curses.A_REVERSE)
             else:
                 self.window.addstr(0, len(self.R_OVER_CHAR), mes)
 
@@ -145,6 +153,10 @@ def noAction(e: str) -> str:
     return e
 
 
+def noValidate(e: str) -> bool:
+    return True
+
+
 class Object():
     def __init__(self):
         self.dictonary = {}
@@ -153,6 +165,7 @@ class Object():
              message: str = "",
              default: str = None,
              hook: Callable[[str], str] = None,
+             validator: Callable[[str], bool] = None,
              overwrite: bool = False) -> None:
 
         if message is None or message == "":
@@ -161,8 +174,11 @@ class Object():
         if hook is None:
             hook = noAction
 
+        if validator is None:
+            validator = noValidate
+
         if overwrite or not (key in self.dictonary):
-            self.dictonary[key] = needAsk(message, hook, default)
+            self.dictonary[key] = needAsk(message, hook, validator, default)
 
         return None
 
@@ -206,7 +222,7 @@ class Object():
                 stdscr.resize(y + 1, win_x)
             stdscr.addstr(y, x, key)
             stdscr.addstr(y, keylen - 2, ':')
-            subwins[idx] = subwin(stdscr, keylen, y)
+            subwins[idx] = subwin(stdscr, keylen, y, self.dictonary[key].validator)
             if not self.dictonary[key].value is None:
                 subwins[idx].ins_str(self.dictonary[key].value)
                 subwins[idx].render()
@@ -332,11 +348,15 @@ class Object():
         return str(self.dictonary)
 
 
+def ValidTest(e: str) -> bool:
+    return e.find('ng') < 0
+
+
 if __name__ == '__main__':
     test = Object()
     test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
     test.AddQ("key2", message="hoge-fuge", default=None)
-    test.AddQ("key3", hook=testenc)
+    test.AddQ("key3", hook=testenc, validator=ValidTest)
     ret = test.Ask()
     test.AddQ("key4", hook=testenc, default="aaa")
     ret = test.Ask()
