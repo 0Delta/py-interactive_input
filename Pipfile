@@ -8,6 +8,7 @@ wheel = "*"
 twine = "*"
 python-language-server = "*"
 pynvim = "*"
+keyrings-alt = "*"
 
 [packages]
 
