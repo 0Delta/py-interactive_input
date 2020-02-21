@@ -19,6 +19,7 @@ class needAsk():
         self.hook = hook
         self.value = value
         self.validator = validator
+        self.__freeze = False
 
     def SetVal(self, val: str) -> None:
         self.value = val
@@ -28,6 +29,15 @@ class needAsk():
 
     def Validate(self) -> bool:
         return self.validator(self.value)
+
+    def freeze(self) -> None:
+        self.__freeze = True
+
+    def isFreeze(self) -> bool:
+        return self.__freeze
+
+    def unfreeze(self) -> None:
+        self.__freeze = False
 
 
 class subwin():
@@ -186,8 +196,20 @@ class Object():
 
         if overwrite or not (key in self.dictonary):
             self.dictonary[key] = needAsk(message, hook, validator, default)
+        elif key in self.dictonary:
+            self.dictonary[key].unfreeze()
 
         return None
+
+    def freeze(self, key: str = None) -> bool:
+        if key is None:
+            for key in self.dictonary:
+                self.dictonary[key].freeze()
+        elif key in self.dictonary:
+            self.dictonary[key].freeze()
+        else:
+            return False
+        return True
 
     def Ask(self) -> dict:
         return curses.wrapper(self.__ask)
@@ -224,6 +246,8 @@ class Object():
         subwins = {}
         meswins = {}
         for key in self.dictonary:
+            if self.dictonary[key].isFreeze():
+                continue
             message = self.dictonary[key].message
             if len(message) > max_x:
                 message = message[:max_x-3] + "..."
@@ -388,6 +412,7 @@ if __name__ == '__main__':
     test.AddQ("key2", message="hoge-fuge", default=None)
     test.AddQ("key3", hook=testenc, validator=ValidTest)
     ret = test.Ask()
+    test.freeze("key")
     test.AddQ("key4", hook=testenc, default="aaa")
     ret = test.Ask()
     print(ret)
