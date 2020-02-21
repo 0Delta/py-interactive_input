@@ -161,7 +161,7 @@ def noValidate(e: str) -> bool:
 
 
 class Object():
-    def __init__(self, *, verbose: str):
+    def __init__(self, *, verbose: str = ""):
         self.verbose = verbose
         self.dictonary = {}
 
@@ -382,6 +382,7 @@ def ValidTest(e: str) -> bool:
 
 
 if __name__ == '__main__':
+    test = Object()
     test = Object(verbose="test is very looooooooooooooooooooooooooooooooooooooo\nooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
     test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
     test.AddQ("key2", message="hoge-fuge", default=None)
