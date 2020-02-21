@@ -161,8 +161,12 @@ def noValidate(e: str) -> bool:
 
 
 class Object():
-    def __init__(self):
+    def __init__(self, *, verbose: str):
+        self.verbose = verbose
         self.dictonary = {}
+
+    def setVerbose(self, verbose: str):
+        self.verbose = ""
 
     def AddQ(self, key: str, *,
              message: str = "",
@@ -205,6 +209,14 @@ class Object():
 
         # get window size max
         max_x = win_x - 1 - keylen
+
+        # print verbose
+        for l in self.verbose.splitlines(False):
+            stdscr.addnstr(y, 0, l, max_x)
+            y += 1
+
+        stdscr.hline(y, 0, '-', max_x)
+        y += 1
 
         # init subwindows and print messages
         idx = 0
@@ -370,7 +382,7 @@ def ValidTest(e: str) -> bool:
 
 
 if __name__ == '__main__':
-    test = Object()
+    test = Object(verbose="test is very looooooooooooooooooooooooooooooooooooooo\nooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
     test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
     test.AddQ("key2", message="hoge-fuge", default=None)
     test.AddQ("key3", hook=testenc, validator=ValidTest)
