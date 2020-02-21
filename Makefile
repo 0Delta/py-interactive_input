@@ -3,7 +3,7 @@ test-deploy:
 	pipenv run twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
 master-deploy-tag:
-	make tag
+	make pushtag
 	make master-deploy
 
 pushtag:
