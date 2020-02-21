@@ -260,10 +260,10 @@ class Object():
                 stdscr.resize(y + 1, win_x)
             stdscr.addstr(y, x, key)
             stdscr.addstr(y, keylen - 2, ':')
-            subwins[idx] = subwin(stdscr, keylen, y, self.dictonary[key].validator)
+            subwins[idx] = {"key": key, "win":subwin(stdscr, keylen, y, self.dictonary[key].validator)}
             if not self.dictonary[key].value is None:
-                subwins[idx].ins_str(self.dictonary[key].value)
-                subwins[idx].render()
+                subwins[idx]["win"].ins_str(self.dictonary[key].value)
+                subwins[idx]["win"].render()
                 if actidx == idx and len(self.dictonary) >= actidx + 1:
                     actidx += 1
             idx += 1
@@ -281,18 +281,18 @@ class Object():
 
         def checkValid():
             for idx in subwins:
-                if not subwins[idx].validate():
+                if not subwins[idx]["win"].validate():
                     return False
             return True
 
         def render():
             pos_y = 0
-            now_y, now_x = subwins[actidx].getpos()
+            now_y, now_x = subwins[actidx]["win"].getpos()
             if pos_y > now_y:
                 pos_y = now_y - 1
             if now_y - pos_y > win_y - 1:
                 pos_y = now_y - win_y + 1
-            subwins[actidx].render(active=True)
+            subwins[actidx]["win"].render(active=True)
             stdscr.move(now_y, now_x)
             stdscr.refresh(pos_y, 0, 0, 0, win_y - 1, win_x - 1)
         # first render
@@ -309,7 +309,7 @@ class Object():
             clog.append(str(key))
 
             # now_y, now_x = actwin.getyx()
-            now_x = subwins[actidx].x
+            now_x = subwins[actidx]["win"].x
 
             # end with Ctrl+X
             if key == curses.ascii.CAN:
@@ -323,17 +323,17 @@ class Object():
             elif key in (curses.ascii.BS, curses.ascii.DEL, curses.KEY_BACKSPACE):
                 act = "D"
                 if now_x > 0:
-                    subwins[actidx].del_str(now_x)
+                    subwins[actidx]["win"].del_str(now_x)
 
             # →
             elif key == curses.KEY_RIGHT:
                 act = "→"
-                subwins[actidx].move_x(1)
+                subwins[actidx]["win"].move_x(1)
             # ←
             elif key == curses.KEY_LEFT:
                 act = "←"
                 # if now_x > 0:
-                subwins[actidx].move_x(-1)
+                subwins[actidx]["win"].move_x(-1)
             # ↓
             elif key in (curses.KEY_DOWN, curses.ascii.NL):
                 act = "↓"
@@ -371,7 +371,7 @@ class Object():
                 # overwise add char
                 else:
                     act = "P"
-                    subwins[actidx].ins_str(chr(key))
+                    subwins[actidx]["win"].ins_str(chr(key))
 
             # debug
             if False:
@@ -384,16 +384,17 @@ class Object():
             # for idx in meswins:
             #   meswins[idx].refresh()
             for idx in subwins:
-                subwins[idx].render()
-            subwins[actidx].render(active=True)
+                subwins[idx]["win"].render()
+            subwins[actidx]["win"].render(active=True)
 
             render()
 
         ret = {}
         idx = 0
         for key in self.dictonary:
-            self.dictonary[key].SetVal(subwins[idx].val)
-            idx += 1
+            for idx in subwins:
+                if subwins[idx]["key"] == key:
+                    self.dictonary[key].SetVal(subwins[idx]["win"].val)
             ret[key] = self.dictonary[key].GetVal()
         return ret
 
@@ -412,7 +413,8 @@ if __name__ == '__main__':
     test.AddQ("key2", message="hoge-fuge", default=None)
     test.AddQ("key3", hook=testenc, validator=ValidTest)
     ret = test.Ask()
-    test.freeze("key")
+    test.freeze("key2")
     test.AddQ("key4", hook=testenc, default="aaa")
+    test.AddQ("key5", hook=testenc, default="5")
     ret = test.Ask()
     print(ret)
