@@ -166,7 +166,7 @@ class Object():
         self.dictonary = {}
 
     def setVerbose(self, verbose: str):
-        self.verbose = ""
+        self.verbose = verbose
 
     def AddQ(self, key: str, *,
              message: str = "",
@@ -383,7 +383,7 @@ def ValidTest(e: str) -> bool:
 
 if __name__ == '__main__':
     test = Object()
-    test = Object(verbose="test is very looooooooooooooooooooooooooooooooooooooo\nooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
+    test.setVerbose(verbose="test is very loooooooooooooooooooooooooooooooooooo\noooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
     test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
     test.AddQ("key2", message="hoge-fuge", default=None)
     test.AddQ("key3", hook=testenc, validator=ValidTest)
