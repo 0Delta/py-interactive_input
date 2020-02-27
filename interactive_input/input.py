@@ -340,11 +340,7 @@ class Object():
                 if len(subwins) > actidx+1:
                     actidx += 1
                 else:
-                    if not checkValid():
-                        curses.beep()
-                        curses.flash()
-                        continue
-                    break
+                    continue
             # ↑
             elif key in (curses.KEY_UP, curses.ascii.VT):
                 act = "↑"
