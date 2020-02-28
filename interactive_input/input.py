@@ -335,11 +335,22 @@ class Object():
                 # if now_x > 0:
                 subwins[actidx]["win"].move_x(-1)
             # ↓
-            elif key in (curses.KEY_DOWN, curses.ascii.NL):
+            elif key == curses.KEY_DOWN:
                 act = "↓"
                 if len(subwins) > actidx+1:
                     actidx += 1
                 else:
+                    continue
+            # Enter
+            elif key in (curses.KEY_ENTER, curses.ascii.NL):
+                act = "E"
+                if len(subwins) > actidx+1:
+                    actidx += 1
+                elif checkValid():
+                    break
+                else:
+                    curses.beep()
+                    curses.flash()
                     continue
             # ↑
             elif key in (curses.KEY_UP, curses.ascii.VT):
@@ -353,29 +364,16 @@ class Object():
 
             # Other
             else:
-                # ignore overrange input
-                # TODO: Scroll or expand rect
-                # if now_x == max_x and now_y == max_y:
-                #     pass
-                # End with last line enter
-                if actidx >= len(subwins) and key in (curses.KEY_ENTER, 10):
-                    if not checkValid():
-                        curses.beep()
-                        curses.flash()
-                        continue
-                    break
-                # overwise add char
-                else:
-                    act = "P"
-                    subwins[actidx]["win"].ins_str(chr(key))
+                act = "P"
+                subwins[actidx]["win"].ins_str(chr(key))
 
             # debug
             if False:
                 stdscr.addstr(19, 20, 'idx' + str(actidx) + "/" + str(len(subwins)) + " - " + act)
                 stdscr.addstr(20, 20, 'max/min ' + str(max_y) + ':' + str(keylen))
                 stdscr.addstr(21, 0, ",".join(clog))
-                for subw in subwins:
-                    stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : ox" + str(subwins[subw].ox) + " : mx" + str(subwins[subw].mx) + " : len" + str(len(subwins[subw].val)))
+                # for subw in subwins:
+                    # stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : ox" + str(subwins[subw].ox) + " : mx" + str(subwins[subw].mx) + " : len" + str(len(subwins[subw].val)))
 
             # for idx in meswins:
             #   meswins[idx].refresh()
