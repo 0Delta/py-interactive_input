@@ -9,17 +9,19 @@ locale.setlocale(locale.LC_ALL, '')
 code = locale.getpreferredencoding()
 
 
-def testenc(e: str) -> str:
-    return "base64ed: " + e
-
-
 class needAsk():
-    def __init__(self, message: str, hook: Callable[[str], str], validator: Callable[[str], bool], value: str = None):
+    def __init__(self,
+                 message: str,
+                 hook: Callable[[str], str],
+                 validator: Callable[[str], bool],
+                 value: str = None,
+                 wrap: bool = None):
         self.message = message
         self.hook = hook
         self.value = value
         self.validator = validator
         self.__freeze = False
+        self.wrap = wrap
 
     def SetVal(self, val: str) -> None:
         self.value = val
@@ -162,6 +164,41 @@ class subwin():
         return self.val
 
 
+class comwin():
+    def __init__(self, stdscr, py: int, message: str, *, wrap: bool = False):
+        win_y, win_x = stdscr.getmaxyx()
+        self.py = py
+        self.messages = {}
+        self.h = 0
+
+        while len(message) > win_x:
+            if wrap:
+                self.messages[self.h] = message[:win_x]
+                message = message[win_x:]
+                self.h += 1
+            else:
+                message = message[:win_x-3] + "..."
+                break
+
+        self.messages[self.h] = message
+        self.h += 1
+        if win_y <= self.py + self.h:
+            stdscr.resize(self.py + self.h + 1, win_x)
+
+        self.window = stdscr.derwin(self.h, 0, self.py, 0)
+        # stdscr.addstr("comwin " + str(self.py) + " " + str(self.h) + " " + str(self.messages))
+        # stdscr.refresh(0, 0, 0, 0, 20, max_x)
+
+    def render(self):
+        try:
+            for mes in self.messages:
+                self.window.addstr(mes, 0, self.messages[mes], curses.A_DIM | curses.A_LOW)
+            self.window.syncup()
+        except BaseException as e:
+            print(e)
+        # self.window.refresh(0, 0, 0, 0, self.h, self.max_x)
+
+
 def noAction(e: str) -> str:
     return e
 
@@ -171,9 +208,10 @@ def noValidate(e: str) -> bool:
 
 
 class Object():
-    def __init__(self, *, verbose: str = ""):
+    def __init__(self, *, verbose: str = "", default_wrap: bool = False):
         self.verbose = verbose
         self.dictonary = {}
+        self.wrap_mode = default_wrap
 
     def setVerbose(self, verbose: str):
         self.verbose = verbose
@@ -183,6 +221,7 @@ class Object():
              default: str = None,
              hook: Callable[[str], str] = None,
              validator: Callable[[str], bool] = None,
+             message_wrap: bool = None,
              overwrite: bool = False) -> None:
 
         if message is None or message == "":
@@ -195,7 +234,7 @@ class Object():
             validator = noValidate
 
         if overwrite or not (key in self.dictonary):
-            self.dictonary[key] = needAsk(message, hook, validator, default)
+            self.dictonary[key] = needAsk(message, hook, validator, default, message_wrap)
         elif key in self.dictonary:
             self.dictonary[key].unfreeze()
 
@@ -211,7 +250,8 @@ class Object():
             return False
         return True
 
-    def Ask(self) -> dict:
+    def Ask(self, *, override_wrap: bool = None) -> dict:
+        self.override_wrap = override_wrap
         return curses.wrapper(self.__ask)
 
     def __ask(self, stdscr) -> dict:
@@ -249,18 +289,20 @@ class Object():
             if self.dictonary[key].isFreeze():
                 continue
             message = self.dictonary[key].message
-            if len(message) > max_x:
-                message = message[:max_x-3] + "..."
-            meswins[idx] = stdscr.derwin(1, win_x - 1, y, 0)
-            meswins[idx].addstr(0, 0, message, curses.A_DIM | curses.A_LOW)
-            meswins[idx].refresh(0, 0, 0, 0, 0, 0)
-            # stdscr.addstr(y, x, message, curses.A_REVERSE)
-            y += 1
-            if win_y <= y:
-                stdscr.resize(y + 1, win_x)
+
+            wrap = self.override_wrap
+            if wrap is None:
+                wrap = self.dictonary[key].wrap
+            if wrap is None:
+                wrap = self.wrap_mode
+
+            meswins[idx] = comwin(stdscr, y, message, wrap=wrap)
+            meswins[idx].render()
+            y += meswins[idx].h
+
             stdscr.addstr(y, x, key)
             stdscr.addstr(y, keylen - 2, ':')
-            subwins[idx] = {"key": key, "win":subwin(stdscr, keylen, y, self.dictonary[key].validator)}
+            subwins[idx] = {"key": key, "win": subwin(stdscr, keylen, y, self.dictonary[key].validator)}
             if not self.dictonary[key].value is None:
                 subwins[idx]["win"].ins_str(self.dictonary[key].value)
                 subwins[idx]["win"].render()
@@ -295,6 +337,7 @@ class Object():
             subwins[actidx]["win"].render(active=True)
             stdscr.move(now_y, now_x)
             stdscr.refresh(pos_y, 0, 0, 0, win_y - 1, win_x - 1)
+
         # first render
         render()
 
@@ -373,7 +416,8 @@ class Object():
                 stdscr.addstr(20, 20, 'max/min ' + str(max_y) + ':' + str(keylen))
                 stdscr.addstr(21, 0, ",".join(clog))
                 # for subw in subwins:
-                    # stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : ox" + str(subwins[subw].ox) + " : mx" + str(subwins[subw].mx) + " : len" + str(len(subwins[subw].val)))
+                #   stdscr.addstr(22 + subw, 0, str(subw) + "-" + str(subwins[subw].x) + " : ox" + str(subwins[subw].ox) + " : "
+                #   + "mx" + str(subwins[subw].mx) + " : len" + str(len(subwins[subw].val)))
 
             # for idx in meswins:
             #   meswins[idx].refresh()
@@ -394,21 +438,3 @@ class Object():
 
     def __str__(self):
         return str(self.dictonary)
-
-
-def ValidTest(e: str) -> bool:
-    return e.find('ng') < 0
-
-
-if __name__ == '__main__':
-    test = Object()
-    test.setVerbose(verbose="test is very loooooooooooooooooooooooooooooooooooo\noooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
-    test.AddQ("key", message="loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongcat")
-    test.AddQ("key2", message="hoge-fuge", default=None)
-    test.AddQ("key3", hook=testenc, validator=ValidTest)
-    ret = test.Ask()
-    test.freeze("key2")
-    test.AddQ("key4", hook=testenc, default="aaa")
-    test.AddQ("key5", hook=testenc, default="5")
-    ret = test.Ask()
-    print(ret)
