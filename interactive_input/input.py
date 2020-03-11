@@ -171,12 +171,20 @@ class comwin():
         self.messages = {}
         self.h = 0
 
-        while len(message) > win_x:
+        while len(message) > win_x or message.find('\n') != -1:
             if wrap:
-                self.messages[self.h] = message[:win_x]
-                message = message[win_x:]
+                plf = message.find('\n')
+                le = win_x
+                if 0 <= plf and plf < win_x:
+                    le = plf
+                    self.messages[self.h] = message[:le]
+                    message = message[le+1:]
+                else:
+                    self.messages[self.h] = message[:le]
+                    message = message[le:]
                 self.h += 1
             else:
+                message.replace('\n', ' ')
                 message = message[:win_x-3] + "..."
                 break
 
