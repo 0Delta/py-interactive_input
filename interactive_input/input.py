@@ -53,12 +53,12 @@ def noValidate(e: str) -> bool:
 
 class Object():
     def __init__(self, *, verbose: str = "", default_wrap: bool = False):
-        self.verbose = verbose
-        self.dictonary = {}
-        self.wrap_mode = default_wrap
+        self.__verbose = verbose
+        self.__dictonary = {}
+        self.__wrap_mode = default_wrap
 
     def setVerbose(self, verbose: str):
-        self.verbose = verbose
+        self.__verbose = verbose
 
     def AddQ(self, key: str, *,
              message: str = "",
@@ -77,19 +77,19 @@ class Object():
         if validator is None:
             validator = noValidate
 
-        if overwrite or not (key in self.dictonary):
-            self.dictonary[key] = needAsk(message, hook, validator, default, message_wrap)
-        elif key in self.dictonary:
-            self.dictonary[key].unfreeze()
+        if overwrite or not (key in self.__dictonary):
+            self.__dictonary[key] = needAsk(message, hook, validator, default, message_wrap)
+        elif key in self.__dictonary:
+            self.__dictonary[key].unfreeze()
 
         return None
 
     def freeze(self, key: str = None) -> bool:
         if key is None:
-            for key in self.dictonary:
-                self.dictonary[key].freeze()
-        elif key in self.dictonary:
-            self.dictonary[key].freeze()
+            for key in self.__dictonary:
+                self.__dictonary[key].freeze()
+        elif key in self.__dictonary:
+            self.__dictonary[key].freeze()
         else:
             return False
         return True
@@ -103,7 +103,7 @@ class Object():
         stdscr = curses.newpad(win_y, win_x)
         # calc key max length
         keylen = 0
-        for key in self.dictonary:
+        for key in self.__dictonary:
             if keylen < len(key):
                 keylen = len(key)
         keylen += 3
@@ -117,7 +117,7 @@ class Object():
         max_x = win_x - 1 - keylen
 
         # print verbose
-        for l in self.verbose.splitlines(False):
+        for l in self.__verbose.splitlines(False):
             stdscr.addnstr(y, 0, l, max_x)
             y += 1
 
@@ -129,16 +129,16 @@ class Object():
         actidx = 0
         subwins = {}
         meswins = {}
-        for key in self.dictonary:
-            if self.dictonary[key].isFreeze():
+        for key in self.__dictonary:
+            if self.__dictonary[key].isFreeze():
                 continue
-            message = self.dictonary[key].message
+            message = self.__dictonary[key].message
 
             wrap = self.override_wrap
             if wrap is None:
-                wrap = self.dictonary[key].wrap
+                wrap = self.__dictonary[key].wrap
             if wrap is None:
-                wrap = self.wrap_mode
+                wrap = self.__wrap_mode
 
             meswins[idx] = window.comwin(stdscr, y, message, wrap=wrap)
             meswins[idx].render()
@@ -146,11 +146,11 @@ class Object():
 
             stdscr.addstr(y, x, key)
             stdscr.addstr(y, keylen - 2, ':')
-            subwins[idx] = {"key": key, "win": window.subwin(stdscr, keylen, y, self.dictonary[key].validator)}
-            if not self.dictonary[key].value is None:
-                subwins[idx]["win"].ins_str(self.dictonary[key].value)
+            subwins[idx] = {"key": key, "win": window.subwin(stdscr, keylen, y, self.__dictonary[key].validator)}
+            if not self.__dictonary[key].value is None:
+                subwins[idx]["win"].ins_str(self.__dictonary[key].value)
                 subwins[idx]["win"].render()
-                if actidx == idx and len(self.dictonary) >= actidx + 1:
+                if actidx == idx and len(self.__dictonary) >= actidx + 1:
                     actidx += 1
             idx += 1
             y += 1
@@ -273,12 +273,12 @@ class Object():
 
         ret = {}
         idx = 0
-        for key in self.dictonary:
+        for key in self.__dictonary:
             for idx in subwins:
                 if subwins[idx]["key"] == key:
-                    self.dictonary[key].SetVal(subwins[idx]["win"].val)
-            ret[key] = self.dictonary[key].GetVal()
+                    self.__dictonary[key].SetVal(subwins[idx]["win"].val)
+            ret[key] = self.__dictonary[key].GetVal()
         return ret
 
     def __str__(self):
-        return str(self.dictonary)
+        return str(self.__dictonary)
