@@ -27,4 +27,5 @@ if __name__ == '__main__':
     test.AddQ("key4", hook=testenc, default="aaa")
     test.AddQ("key5", hook=testenc, default="5")
     ret = test.Ask()
+    print(test)
     print(ret)

@@ -4,6 +4,7 @@ import curses
 import locale
 
 import window
+from sys import maxsize
 
 
 locale.setlocale(locale.LC_ALL, '')
@@ -41,6 +42,13 @@ class needAsk():
 
     def unfreeze(self) -> None:
         self.__freeze = False
+
+    def __str__(self):
+        return "NeedAskObj:" + self.value
+
+    def __repr__(self):
+        from pprint import pformat
+        return "<" + type(self).__name__ + "> " + pformat(vars(self),width=maxsize, compact=True)
 
 
 def noAction(e: str) -> str:
