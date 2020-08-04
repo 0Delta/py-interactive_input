@@ -3,7 +3,7 @@ from typing import Callable
 import curses
 import locale
 
-import window
+from . import window
 from sys import maxsize
 
 

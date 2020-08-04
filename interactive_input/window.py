@@ -120,7 +120,8 @@ class subwin():
                 self.__window.syncup()
                 # self.__window.refresh()
         except BaseException as e:
-            print(e)
+            pass
+            # print(e)
 
     def __str__(self):
         return self.val
@@ -165,5 +166,6 @@ class comwin():
                 self.__window.addstr(mes, 0, self.__messages[mes], curses.A_DIM | curses.A_LOW)
             self.__window.syncup()
         except BaseException as e:
-            print(e)
+            pass
+            # print(e)
         # self.__window.refresh(0, 0, 0, 0, self.h, self.__max_x)
